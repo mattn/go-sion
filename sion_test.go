@@ -177,4 +177,7 @@ func TestStruct(t *testing.T) {
 	if v.Title != "hello\nworld" {
 		t.Fatalf("v.Title should be %q but %q", "hello\nworld", v.Title)
 	}
+	if v.CreatedAt.Sub(time.Unix(1531314574, 0)) != 0 {
+		t.Fatalf("v.Created should be %v but %v", 1531314574, v.CreatedAt.Unix())
+	}
 }
