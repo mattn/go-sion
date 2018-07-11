@@ -42,15 +42,15 @@ func TestSION(t *testing.T) {
 		},
 		{
 			input:  `[true, 1]`,
-			result: []interface{}{true, int64(1)},
+			result: Array{true, int64(1)},
 		},
 		{
 			input:  `[true, [1: "foo"]]`,
-			result: []interface{}{true, map[interface{}]interface{}{int64(1): "foo"}},
+			result: Array{true, Map{int64(1): "foo"}},
 		},
 		{
 			input:  `[true, [:]]`,
-			result: []interface{}{true, map[interface{}]interface{}{}},
+			result: Array{true, Map{}},
 		},
 		{
 			input: `
@@ -67,21 +67,21 @@ func TestSION(t *testing.T) {
 				"url":"https://github.com/dankogai/"
 			]
 			`,
-			result: map[interface{}]interface{}{
+			result: Map{
 				"nil":    nil,
 				"bool":   true,
 				"int":    int64(-42),
 				"double": float64(42.195),
 				"string": "漢字、カタカナ、ひらがなの入ったstring😇",
-				"array":  []interface{}{nil, true, int64(1), float64(1.0), "one", []interface{}{int64(1)}, map[interface{}]interface{}{"one": float64(1.0)}},
-				"dictionary": map[interface{}]interface{}{
+				"array":  Array{nil, true, int64(1), float64(1.0), "one", Array{int64(1)}, Map{"one": float64(1.0)}},
+				"dictionary": Map{
 					"nil":    nil,
 					"bool":   false,
 					"int":    int64(0),
 					"double": float64(0.0),
 					"string": "",
-					"array":  []interface{}{},
-					"object": map[interface{}]interface{}{},
+					"array":  Array{},
+					"object": Map{},
 				},
 				"url": "https://github.com/dankogai/",
 			},
@@ -120,18 +120,18 @@ func TestSION(t *testing.T) {
 					1.0   : "non-String keys."
 				]
 				`,
-			result: map[interface{}]interface{}{
-				"array": []interface{}{nil, true, int64(1), float64(1.0), "one", []interface{}{int64(1)}, map[interface{}]interface{}{"one": float64(1.0)}},
+			result: Map{
+				"array": Array{nil, true, int64(1), float64(1.0), "one", Array{int64(1)}, Map{"one": float64(1.0)}},
 				"bool":  true,
 				"data":  []byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0x21, 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x01, 0x44, 0x00, 0x3b},
 				"date":  time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).Local(),
-				"dictionary": map[interface{}]interface{}{
-					"array":  []interface{}{},
+				"dictionary": Map{
+					"array":  Array{},
 					"bool":   false,
 					"double": int64(0.0),
 					"int":    int64(0),
 					"nil":    nil,
-					"object": map[interface{}]interface{}{},
+					"object": Map{},
 					"string": "",
 				},
 				"double":     float64(0.0),
@@ -155,5 +155,26 @@ func TestSION(t *testing.T) {
 		if !reflect.DeepEqual(v, test.result) {
 			t.Fatalf("want %+v but got %+v", test.result, v)
 		}
+	}
+}
+
+func TestStruct(t *testing.T) {
+	s := `
+	[
+		"title": "hello\nworld",
+		"created_at": .Date(1531314574)
+	]
+	`
+
+	var v struct {
+		Title     string    `json:"title"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+	err := NewDecoder(strings.NewReader(s)).Decode(&v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Title != "hello\nworld" {
+		t.Fatalf("v.Title should be %q but %q", "hello\nworld", v.Title)
 	}
 }

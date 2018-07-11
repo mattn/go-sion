@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"time"
 	"unicode"
 )
@@ -15,6 +17,36 @@ import (
 type Decoder struct {
 	r *bufio.Reader
 	v reflect.Value
+}
+
+type Array []interface{}
+type Map map[interface{}]interface{}
+
+func (m Map) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	_, err := buf.WriteString("{")
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range m {
+		var vbuf bytes.Buffer
+		err = json.NewEncoder(&vbuf).Encode(v)
+		if err != nil {
+			return nil, err
+		}
+		if buf.Len() > 1 {
+			_, err = buf.WriteString(",")
+			if err != nil {
+				return nil, err
+			}
+		}
+		fmt.Fprintf(&buf, "%q:%s", fmt.Sprint(k), strings.TrimRight(vbuf.String(), "\n"))
+	}
+	_, err = buf.WriteString("}")
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func hashable(v interface{}) bool {
@@ -257,13 +289,13 @@ func (d *Decoder) decodeArrayOrObject() (interface{}, error) {
 		if r != ']' {
 			return nil, errors.New("parse error: invalid empty map")
 		}
-		return map[interface{}]interface{}{}, nil
+		return Map{}, nil
 	} else if b[0] == ']' {
 		_, _, err := d.r.ReadRune()
 		if err != nil {
 			return nil, err
 		}
-		return []interface{}{}, nil
+		return Array{}, nil
 	}
 	k, err := d.decodeAny()
 	if err != nil {
@@ -279,9 +311,9 @@ func (d *Decoder) decodeArrayOrObject() (interface{}, error) {
 	}
 	switch r {
 	case ']':
-		return []interface{}{k}, nil
+		return Array{k}, nil
 	case ',':
-		ret := []interface{}{k}
+		ret := Array{k}
 		for {
 			err = d.skipWhite()
 			if err != nil {
@@ -317,7 +349,7 @@ func (d *Decoder) decodeArrayOrObject() (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret := map[interface{}]interface{}{}
+		ret := Map{}
 		if hashable(k) {
 			ret[k] = v
 		} else {
@@ -479,6 +511,13 @@ func (d *Decoder) Decode(ref interface{}) error {
 		*vv = v.(string)
 	case *bool:
 		*vv = v.(bool)
+	default:
+		var buf bytes.Buffer
+		err = json.NewEncoder(&buf).Encode(v)
+		if err != nil {
+			return fmt.Errorf("marshal error: %v", err)
+		}
+		return json.NewDecoder(&buf).Decode(ref)
 	}
 	for {
 		r, _, err := d.r.ReadRune()
