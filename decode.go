@@ -24,7 +24,7 @@ type Map map[interface{}]interface{}
 
 func (m Map) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
-	_, err := buf.WriteString("{")
+	err := buf.WriteByte('{')
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (m Map) MarshalJSON() ([]byte, error) {
 		}
 		fmt.Fprintf(&buf, "%q:%s", fmt.Sprint(k), strings.TrimRight(vbuf.String(), "\n"))
 	}
-	_, err = buf.WriteString("}")
+	err = buf.WriteByte('}')
 	if err != nil {
 		return nil, err
 	}

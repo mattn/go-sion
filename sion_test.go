@@ -1,6 +1,7 @@
 package sion
 
 import (
+	"bytes"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,8 +12,8 @@ func addressOf(v interface{}) interface{} {
 	return &v
 }
 
-func TestSION(t *testing.T) {
-	tests := []struct {
+func TestDecode(t *testing.T) {
+	var tests = []struct {
 		input  string
 		result interface{}
 	}{
@@ -158,7 +159,7 @@ func TestSION(t *testing.T) {
 	}
 }
 
-func TestStruct(t *testing.T) {
+func TestDecodeStruct(t *testing.T) {
 	s := `
 	[
 		"title": "hello\nworld",
@@ -179,5 +180,64 @@ func TestStruct(t *testing.T) {
 	}
 	if v.CreatedAt.Sub(time.Unix(1531314574, 0)) != 0 {
 		t.Fatalf("v.Created should be %v but %v", 1531314574, v.CreatedAt.Unix())
+	}
+}
+
+func TestEncode(t *testing.T) {
+	tests := []struct {
+		input  string
+		result interface{}
+	}{
+		{
+			input:  `"foo"`,
+			result: "foo",
+		},
+		{
+			input:  `"fo\no"`,
+			result: "fo\no",
+		},
+		{
+			input:  `314.3`,
+			result: 314.3,
+		},
+		{
+			input:  `-314.3`,
+			result: -314.3,
+		},
+		{
+			input:  `true`,
+			result: true,
+		},
+		{
+			input:  `false`,
+			result: false,
+		},
+		{
+			input:  `[true, 1]`,
+			result: Array{true, int64(1)},
+		},
+		{
+			input:  `[true, [1: "foo"]]`,
+			result: Array{true, Map{int64(1): "foo"}},
+		},
+		{
+			input:  `[true, [:]]`,
+			result: Array{true, Map{}},
+		},
+	}
+	for _, test := range tests {
+		var buf bytes.Buffer
+		err := NewEncoder(&buf).Encode(test.result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var v interface{}
+		err = NewDecoder(&buf).Decode(&v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(v, test.result) {
+			t.Fatalf("want %+v but got %+v", test.result, v)
+		}
 	}
 }
